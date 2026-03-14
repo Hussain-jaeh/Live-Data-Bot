@@ -96,77 +96,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Helper Functions ---
-
-# Mapping common currency names to ISO codes
-CURRENCY_MAP = {
-    "naira": "NGN",
-    "dollar": "USD",
-    "dollars": "USD",
-    "euro": "EUR",
-    "euros": "EUR",
-    "pound": "GBP",
-    "pounds": "GBP",
-    "yen": "JPY",
-    "won": "KRW",
-    "yuan": "CNY",
-    "rupee": "INR",
-    "shilling": "KES",
-    "rand": "ZAR",
-    "dirham": "AED",
-    "real": "BRL",
-}
-
-def get_weather(city):
-    if not WEATHER_API_KEY:
-        return "Weather API Key is missing. Please set it in .env"
-    
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={WEATHER_API_KEY}&units=metric"
-    try:
-        response = requests.get(url)
-        data = response.json()
-        if response.status_code == 200:
-            temp = data['main']['temp']
-            desc = data['weather'][0]['description']
-            icon = data['weather'][0]['icon']
-            humidity = data['main']['humidity']
-            wind = data['wind']['speed']
-            
-            return {
-                "temp": temp,
-                "desc": desc,
-                "icon": f"http://openweathermap.org/img/wn/{icon}@2x.png",
-                "humidity": humidity,
-                "wind": wind,
-                "city": data['name']
-            }
-        else:
-            return f"I couldn't find the weather for '{city}'. Please check the city name."
-    except Exception as e:
-        return f"Error connecting to weather service: {str(e)}"
-
-def get_exchange_rate(from_curr, to_curr):
-    if not CURRENCY_API_KEY:
-        return "Currency API Key is missing. Please set it in .env"
-    
-    # Check map first
-    from_code = CURRENCY_MAP.get(from_curr.lower(), from_curr.upper())
-    to_code = CURRENCY_MAP.get(to_curr.lower(), to_curr.upper())
-
-    url = f"https://v6.exchangerate-api.com/v6/{CURRENCY_API_KEY}/latest/{from_code}"
-    try:
-        response = requests.get(url)
-        data = response.json()
-        if response.status_code == 200:
-            rate = data['conversion_rates'].get(to_code)
-            if rate:
-                return rate, from_code, to_code
-            else:
-                return f"Currency code '{to_code}' not found.", None, None
-        else:
-            return f"Error: {data.get('error-type', 'Failed to fetch currency data.')}", None, None
-    except Exception as e:
-        return f"Error connecting to currency service: {str(e)}", None, None
+from chatbot_logic import get_weather, get_exchange_rate, process_prompt
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
@@ -208,21 +138,10 @@ if prompt := st.chat_input("Ask about weather or currency..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-    response_content = ""
-    prompt_lower = prompt.lower()
+    intent, params, _ = process_prompt(prompt)
 
-    weather_keywords = ["weather", "wheather", "temperature", "condition", "temp"]
-    if any(k in prompt_lower for k in weather_keywords):
-        import re
-        city_match = re.search(r"(?:in|at|for)\s+([a-zA-Z\s]+)", prompt_lower)
-        if city_match:
-            city = city_match.group(1).strip()
-        else:
-            words = prompt_lower.split()
-            city = words[-1].strip("? .!")
-            if city in weather_keywords:
-                 city = "London" 
-
+    if intent == "weather":
+        city = params['city']
         with st.spinner(f"Checking weather for {city}..."):
             data = get_weather(city)
             if isinstance(data, dict):
@@ -238,23 +157,19 @@ if prompt := st.chat_input("Ask about weather or currency..."):
             else:
                 response_content = data
     
-    elif any(char.isdigit() for char in prompt_lower) and ("to" in prompt_lower or "convert" in prompt_lower):
-        import re
-        parts = re.findall(r"(\d+\.?\d*)\s*([a-zA-Z]+)\s+(?:to|in)\s+([a-zA-Z]+)", prompt_lower)
-        
-        if parts:
-            amount, from_val, to_val = parts[0]
-            with st.spinner(f"Converting {amount} {from_val}..."):
-                rate, f_code, t_code = get_exchange_rate(from_val, to_val)
-                if isinstance(rate, (float, int)):
-                    converted = float(amount) * rate
-                    response_content = f"### Conversion Results 💸\n**{amount} {f_code}** = **{converted:,.2f} {t_code}**\n\n*Rate: 1 {f_code} = {rate:,.4f} {t_code}*"
-                else:
-                    response_content = rate
-        else:
-            response_content = "I couldn't quite understand that conversion request. Try: `Convert 100 Naira to Dollar` or `100 USD to EUR`."
+    elif intent == "currency":
+        amount = params['amount']
+        from_val = params['from']
+        to_val = params['to']
+        with st.spinner(f"Converting {amount} {from_val}..."):
+            rate, f_code, t_code = get_exchange_rate(from_val, to_val)
+            if isinstance(rate, (float, int)):
+                converted = float(amount) * rate
+                response_content = f"### Conversion Results 💸\n**{amount} {f_code}** = **{converted:,.2f} {t_code}**\n\n*Rate: 1 {f_code} = {rate:,.4f} {t_code}*"
+            else:
+                response_content = rate
 
-    elif any(word in prompt_lower for word in ["hi", "hello", "hey", "intro", "help"]):
+    elif intent == "greeting":
         response_content = "Hello! I'm ready to help you with weather updates or currency conversions. Just ask me something like 'Weather in New York' or 'Convert 50 USD to EUR'."
     else:
         response_content = "I'm specialized in weather and currency. Try asking me for weather in a city (e.g., 'Weather in Tokyo') or a currency conversion (e.g., '100 Naira to Dollar')!"

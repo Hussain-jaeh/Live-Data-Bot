@@ -1,0 +1,52 @@
+[
+    {
+        "query": "What is the weather in London?",
+        "expected_intent": "weather",
+        "expected_parameters": {"city": "london"}
+    },
+    {
+        "query": "weather in Tokyo",
+        "expected_intent": "weather",
+        "expected_parameters": {"city": "tokyo"}
+    },
+    {
+        "query": "How is the temperature in New York?",
+        "expected_intent": "weather",
+        "expected_parameters": {"city": "new york"}
+    },
+    {
+        "query": "Convert 100 USD to EUR",
+        "expected_intent": "currency",
+        "expected_parameters": {"amount": "100", "from": "usd", "to": "eur"}
+    },
+    {
+        "query": "150 pounds to naira",
+        "expected_intent": "currency",
+        "expected_parameters": {"amount": "150", "from": "pounds", "to": "naira"}
+    },
+    {
+        "query": "What is 50.5 CAD in USD?",
+        "expected_intent": "currency",
+        "expected_parameters": {"amount": "50.5", "from": "cad", "to": "usd"}
+    },
+    {
+        "query": "Hi there!",
+        "expected_intent": "greeting",
+        "expected_parameters": {}
+    },
+    {
+        "query": "Can you help me?",
+        "expected_intent": "greeting",
+        "expected_parameters": {}
+    },
+    {
+        "query": "Who is the president of France?",
+        "expected_intent": "fallback",
+        "expected_parameters": {}
+    },
+    {
+        "query": "Tell me a joke",
+        "expected_intent": "fallback",
+        "expected_parameters": {}
+    }
+]
